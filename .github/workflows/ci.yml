@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  FLUTTER_VERSION: "3.47.0"
+
+jobs:
+  analyze_and_test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+      - run: flutter pub get
+      - run: dart run build_runner build --delete-conflicting-outputs
+      - run: flutter analyze
+      - run: flutter test --coverage
+
+  build_android:
+    needs: analyze_and_test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+      - run: flutter pub get
+      - run: dart run build_runner build --delete-conflicting-outputs
+      # TODO: debug build only, no signing configured. Before shipping,
+      # supply a release keystore + Gradle signing config and switch
+      # this to `flutter build appbundle --release`.
+      - run: flutter build apk --debug
+
+  build_ios:
+    needs: analyze_and_test
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+      - run: flutter pub get
+      - run: dart run build_runner build --delete-conflicting-outputs
+      # TODO: unsigned build only. Before shipping, supply a signing
+      # certificate + provisioning profile (or use fastlane match) and
+      # switch this to a signed `flutter build ipa`.
+      - run: flutter build ios --release --no-codesign
